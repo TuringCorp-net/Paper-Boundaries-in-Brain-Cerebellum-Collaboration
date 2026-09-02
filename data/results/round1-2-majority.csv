@@ -1,0 +1,7 @@
+round,group,mode,tasks_passed,tasks_total,per_run_passed,per_run_total,per_run_pct,avg_time_s,avg_out_tokens
+round1,A,cloud-direct,6,8,19,24,79,14.5,1697
+round1,B,gemma4-e4b-nothink,6,8,17,24,71,9.2,253
+round1,C,gemma4-e4b-think,6,8,17,24,71,24.3,915
+round2,A,cloud-direct,8,8,23,24,96,32.6,3719
+round2,B,gemma4-e4b-nothink,6,8,18,24,75,22.2,709
+round2,C,gemma4-e4b-think,6,8,18,24,75,41.4,1408

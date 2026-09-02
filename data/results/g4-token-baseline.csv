@@ -1,0 +1,8 @@
+category,value
+input_cache_miss,73314
+input_cache_hit,571904
+output,47906
+reasoning,29212
+billed_output_incl_reasoning,77118
+cache_hit_rate_pct,88.6
+tasks,9

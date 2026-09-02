@@ -1,0 +1,4 @@
+tier,approx_size_gb,round1_tasks,round2_tasks,avg_time_r1_s,avg_time_r2_s,avg_out_tokens_r1,avg_out_tokens_r2,device_class
+gemma4-e4b,10,6/8,6/8,9.2,22.2,253,709,high-end laptop
+qwen3.5-4b,5,4/8,4/8,7.9,26.1,260,859,mid laptop / high-end phone
+qwen3.5-0.8b,1,2/8,0/8,2.8,7.7,268,755,phone / wearable

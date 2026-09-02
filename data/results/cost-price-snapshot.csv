@@ -1,0 +1,5 @@
+model,input_cache_miss_usd_per_m,cache_hit_usd_per_m,output_usd_per_m,cache_to_input_ratio
+deepseek-v4-flash,0.14,0.0028,0.28,1/50
+deepseek-v4-pro,1.74,0.0145,3.48,~1/120
+gpt-5.6-sol,5.00,0.50,30.00,1/10
+claude-fable-5,10.00,1.00,50.00,1/10

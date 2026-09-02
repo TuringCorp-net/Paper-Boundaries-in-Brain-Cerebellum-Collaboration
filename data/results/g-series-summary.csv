@@ -1,0 +1,4 @@
+group,form,task_type,quality_r1,quality_r2,avg_time_r1_s,avg_time_r2_s,equiv_input_r1,equiv_input_r2,cache_hit_r1,cache_hit_r2
+G1,cloud direct,single-step,6/8,8/8,14.5,32.6,426,920,-,-
+G2,DSH orchestration,single-step,7/8,8/8,24.3,62.0,3554,13529,84,93
+G3,tool collaboration,single-step,7/8,8/8,50.0,100.2,11929,21342,93,96
