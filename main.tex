@@ -1,0 +1,419 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\documentclass[
+]{article}
+\usepackage{xcolor}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{iftex}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{textcomp} % provide euro and other symbols
+\usepackage{lmodern}
+
+\pdfoutput=1
+
+\usepackage[hidelinks]{hyperref}
+\hypersetup{
+  pdfauthor   = {Li Zhang},
+  pdftitle    = {Exploring Execution-Form Boundaries in Brain--Cerebellum Collaboration: An Empirical Study from Cloud--Edge to Cost-Tiered Architectures},
+  pdfsubject  = {Preprint},
+  pdfkeywords = {brain--cerebellum collaboration; execution form; small language models; agent architecture; cost scenario analysis; }
+}
+% pandoc-compatible list tightening
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{microtype}
+
+
+\begin{document}
+\section{Exploring Execution-Form Boundaries in Brain--Cerebellum Collaboration: An Empirical Study from Cloud--Edge to Cost-Tiered Architectures}\label{title}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Title \& Author Information}\label{title-author-information}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Title}: Exploring Execution-Form Boundaries in Brain--Cerebellum Collaboration: An Empirical Study from Cloud--Edge to Cost-Tiered Architectures
+\item
+  \textbf{Author}: Li Zhang
+\item
+  \textbf{Affiliation}: TuringCorp
+\item
+  \textbf{Version}: v1 (preprint)
+\item
+  \textbf{Disclosure Boundary}: This report discloses the experimental methodology, evaluation results, and the cost scenario analysis. Raw session logs, execution scripts, and model routing configurations remain unpublished.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Abstract}\label{abstract}
+
+
+
+Agent systems frequently assign high-capability models to planning and decision-making and low-cost models to execution. We call this division \emph{brain--cerebellum collaboration}, using \emph{brain} and \emph{cerebellum} purely as engineering metaphors for a planning/reasoning unit and an execution unit, with no claim of biological mapping. This paper examines the feasibility of local small models as execution units and the influence of invocation form on execution reliability.
+
+We conduct two rounds of capability experiments, the G1--G4 collaboration experiments, and the V0--V4 variable-isolation experiments, comparing a cloud v4-flash model, a local Gemma~4 e4B model (a 14B-parameter MLX-quantized build, runtime tag \texttt{gemma4:e4b-mlx}), Qwen3.5 4B, and Qwen3.5 0.8B under direct-call, tool-call, and sub-agent-loop forms. Our central finding is counter-intuitive: for the specific combination of Gemma~4 e4B on a Mac M1 Pro, the DSH sub-agent loop, and three multi-step scenarios, the local sub-agent produced substantive output in only 8/21 attempts ($\approx$38\%). Retries and fallback increased system new-input tokens by 17\%, output by 74\%, and wall-clock time by 8.1$\times$. In other words, cloud--edge collaboration in this configuration delivered no token or end-to-end latency advantage. This is a bounded but actionable counter-example, not a rejection of edge agents in general.
+
+Variable isolation on scenario A reveals a more generalizable phenomenon: the same Gemma~4 e4B completed 12/12 runs under content-inlined, zero-tool calls, but 0/3 when a tool schema was declared, often terminating after a planning preamble. We summarize this \emph{direct-call-capable yet heavy-agent-unstable} contrast as the \textbf{interaction boundary between execution form and model capability tier}: for small models, direct-call performance cannot be extrapolated to Agent-Loop reliability. This mechanistic attribution still requires replication across more models, scenarios, and runtimes.
+
+Finally, using the measured G4-a token trajectory and a fixed price snapshot, we conduct a cost scenario analysis. Under the unverified assumption that a cheap cloud model behaves as a sub-agent similarly to its main-agent trajectory, estimated savings are 45.0\% for the v4-pro scenario and 70.5--71.5\% for two higher-priced brain scenarios. Cost-tiered collaboration is therefore a worthwhile architecture direction to validate empirically, not a finished solution validated in this paper.
+
+\textbf{Keywords:} brain--cerebellum collaboration; execution form; small language models; agent architecture; cost scenario analysis
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+
+\subsection{1 Introduction}
+\subsubsection{1.1 Problem and background}
+Many agent architectures adopt capability tiering: high-capability, higher-priced cloud models handle planning, complex judgment, and verification, while lower-cost models handle retrieval, organization, local edits, and tool execution. A common intuition is that, when idle edge compute exists, having local small models take over part of the execution should reduce cloud tokens and total cost; even without local models, cheap cloud models could replace some expensive-model calls.
+
+This intuition, however, neglects the cost of the execution form. An executor must receive the task context, follow system prompts, understand tool schemas, complete tool loops, and accept re-dispatch or fallback after failure. A cheap single call does not automatically translate into a system-level cost or latency advantage.
+
+We adopt \emph{brain--cerebellum collaboration} as an engineering metaphor: the \textbf{brain} is the high-capability unit responsible for planning, complex judgment, and verification; the \textbf{cerebellum} is the low-cost unit responsible for bounded execution tasks. No biological mapping is claimed.
+
+\subsubsection{1.2 Research questions}
+\begin{itemize}
+\item \textbf{RQ1:} Within the tested tasks, what is the usable task boundary for different model tiers, and does the reasoning toggle improve local-model completion?
+\item \textbf{RQ2:} For local models such as Google Gemma~4 e4B, how do execution forms---direct call, tool call, and sub-agent loop---affect quality, tokens, and wall-clock time?
+\item \textbf{RQ3:} If a cheap cloud model can reliably serve as the execution layer, what API-bill changes could cost-tiered collaboration yield under a fixed token trajectory and price snapshot?
+\end{itemize}
+
+\subsubsection{1.3 Contributions and scope}
+\begin{enumerate}
+\item \textbf{A counter-intuitive cloud--edge counter-example:} in a specific Gemma~4 e4B sub-agent configuration, failure, re-dispatch, and fallback made collaboration consume more tokens and wall-clock time than the cloud baseline (G4).
+\item \textbf{An execution-form interaction boundary:} V0--V4 show the same model exhibiting markedly different completion behavior between content-inlined direct calls and forms with a tool schema, providing isolated evidence that \emph{direct-call ability is not agent ability}.
+\item \textbf{Task-type and model-tier boundaries:} across two task rounds and three local tiers, statistical, precision, and long-input tasks are the most stable failure categories in the tested configuration.
+\item \textbf{A cost-tiering scenario-analysis framework:} based on measured token trajectories, a fixed price snapshot, and explicit assumptions, we quantify the potential bill structure of a high-priced brain with a low-priced cloud executor.
+\end{enumerate}
+
+This paper does \emph{not} claim: that all local models are unsuitable as agents; that tool schemas cause interruptions in all models; or that cost-tiered collaboration has been empirically validated in a full sub-agent pipeline.
+
+\subsection{2 Related Work}
+\subsubsection{2.1 Agent capability evaluation of small language models}
+TinyLLM [1] evaluates SLM tool/API-calling ability on BFCL and reports that model scale and training strategy significantly affect results. That line of work answers \emph{whether a model can complete tool-call tasks}; our complementary question is whether a model that completes tasks under direct calls remains reliable when placed in a specific agent execution form.
+
+\subsubsection{2.2 Local-model fronting and cost optimization}
+Local-Splitter [2] studies local routing, compression, and local drafting, showing that local models can reduce cloud tokens on certain coding workloads. We are not the first to discuss local-model cost reduction; our increment is to document a counter-example where failure costs exceed the gains and to isolate the influence of execution form, system prompt, and tool declarations via V0--V4.
+
+\subsubsection{2.3 Edge SLMs and reasoning mechanisms}
+Hadjiliasi and Nisiotis [3] explore edge SLMs in virtual-agent Think/Memory processes. DeepSeek-R1 [4] shows that distilled or RL-formed reasoning can improve certain reasoning tasks. Our reasoning-toggle comparison only shows that, on this task set and Gemma~4 e4B, the bare reasoning toggle did not improve task-level majority-pass rates; this does not deny distilled reasoning or reasoning mechanisms in all models.
+
+\subsubsection{2.4 Positioning}
+This paper is a bounded empirical study. Its core proposition is not ``cloud--edge always fails'' but that evaluating small-model agents should measure both task-completion ability and execution-form suitability. We provide supportive evidence for the \emph{execution-form times model-capability-tier} interaction boundary; cross-model generality remains to be replicated.
+
+\subsection{3 Experimental Design and Reporting Conventions}
+\subsubsection{3.1 Experiment overview}
+\begin{table}[ht]
+\centering
+\small
+\resizebox{\textwidth}{!}{\begin{tabular}{lllll}
+\toprule
+Experiment & Brain & Cerebellum & Tasks & Evidence type \\
+\midrule
+Capability rounds (2) & v4-flash direct & Gemma 4 e4B / Qwen3.5 4B / 0.8B direct & single-step doc/code (8+8) & measured \\
+G1 & v4-flash direct & --- & single-step & measured \\
+G2 & v4-flash + DSH orchestration & --- & single-step & measured \\
+G3 & v4-flash + DSH orchestration & Gemma 4 e4B tool-direct & single-step & measured \\
+G4 & v4-flash + DSH orchestration & Gemma 4 e4B sub-agent loop & multi-step (3 scenarios) & measured \\
+V0--V4 & --- & Gemma 4 e4B direct/variants & multi-step (scenario A) & measured, mechanistic \\
+G5 & high-priced brain price scenario & v4-flash & multi-step (3 scenarios) & partial trajectory + scenario \\
+\bottomrule
+\end{tabular}}
+\caption{Experiment overview.}
+\label{tab:overview}
+\end{table}
+
+\subsubsection{3.2 Tasks, executors, and repetition}
+\begin{itemize}
+\item \textbf{Task sets:} Round 1 contains 8 document/log tasks (field extraction, statistics, keywords, summarization, structure synthesis, etc.); Round 2 contains 8 coding tasks (function explanation, line-number localization, config understanding, bug localization, code modification, function authoring, version diffing, documentation generation). Materials come from real data or real source code, including real historical buggy revisions. The G4 multi-step tasks comprise three scenarios: multi-file viewpoint comparison, codebase retrieval and summary, and multi-log analysis.
+\item \textbf{Executors:} the cloud baseline is v4-flash; local models are Google Gemma 4 e4B (a 14B-parameter MLX-quantized build, runtime tag \texttt{gemma4:e4b-mlx}), Qwen3.5 4B, and Qwen3.5 0.8B. Gemma 4 e4B runs on a Mac M1 Pro with MLX. The G series uses DSH orchestration, tool, or sub-agent forms.
+\item \textbf{Repetition and task-level judgment:} each task runs 3 times independently; a task-level PASS requires at least 2 PASS runs. This rule serves engineering acceptance, not statistical significance testing. We report both task-level and per-run rates with explicit denominators.
+\end{itemize}
+
+\subsubsection{3.3 Quality judgment and session hygiene}
+\begin{itemize}
+\item \textbf{Quality judgment:} golden answers plus an independent judge producing PASS/FAIL. Round-1 golden answers were labeled post-hoc and are therefore treated as exploratory evidence; later tasks use pre-generated goldens. Long-text judge results were calibrated by manual review.
+\item \textbf{Session hygiene:} each test uses an independent conversation and context. Early serial-session G2/G3 results were discarded and re-measured because of cache and context pollution; all tables use independent-session data.
+\item \textbf{Cost accounting:} we report new input, cache-hit input, output, reasoning tokens (when separately reported by the API), wall-clock time, and fallback counts. Token and wall-clock are not total cost of ownership; local hardware, electricity, depreciation, network, and manual operations are excluded from the G4 token/latency comparison.
+\end{itemize}
+
+\subsubsection{3.4 Data presentation}
+The main text and appendix tables report all task prompts, judgment criteria, per-run and task-level results, token details, and the price snapshot needed for cost computation. Raw session logs and execution scripts are not made public.
+
+\subsection{4 RQ1: Capability Boundaries and Model Tiers}
+\subsubsection{4.1 Task-level and per-run results}
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{lccc}
+\toprule
+Round & Cloud v4-flash & Gemma 4 e4B no-think & Gemma 4 e4B think \\
+\midrule
+Round 1 (doc) & 6/8 tasks; 19/24 runs (79\%) & 6/8 tasks; 17/24 runs (71\%) & 6/8 tasks; 17/24 runs (71\%) \\
+Round 2 (code) & 8/8 tasks; 23/24 runs (96\%) & 6/8 tasks; 18/24 runs (75\%) & 6/8 tasks; 18/24 runs (75\%) \\
+\bottomrule
+\end{tabular}
+\caption{Task-level majority and per-run pass rates.}
+\label{tab:rq1}
+\end{table}
+
+Task-level majorities tie for document tasks; for coding tasks the cloud leads by two tasks, with differences concentrated in precision or long-input tasks. Gemma 4 e4B's direct-call ability covers part of single-step execution work, but this does not imply equal reliability in heavy agent forms.
+
+\subsubsection{4.2 Cost and benefit of the reasoning toggle}
+\begin{table}[ht]
+\centering
+\small
+\resizebox{\textwidth}{!}{\begin{tabular}{lcccc}
+\toprule
+Round & e4B no-think avg time & e4B think avg time & Observed cost & Task-level majority gap \\
+\midrule
+Doc & 9.2s & 24.3s & time +164\%, output tokens +260\% & 0 \\
+Code & 22.2s & 41.4s & time +86\%, output tokens +99\% & 0 \\
+\bottomrule
+\end{tabular}}
+\caption{Reasoning toggle: cost vs. task-level majority gain.}
+\label{tab:think}
+\end{table}
+
+Reasoning shows compensatory signs on some summarization or generation tasks (e.g., log summarization 3/3 vs. 1/3; code modification 3/3 vs. 2/3) and worse results on statistical tasks (0/3 vs. 2/3). These are small-sample observations; this task set does not support a conclusion that reasoning mechanisms are generally ineffective.
+
+\subsubsection{4.3 Local model tier gradient}
+\begin{table}[ht]
+\centering
+\small
+\resizebox{\textwidth}{!}{\begin{tabular}{lccccc}
+\toprule
+Tier & Doc & Code & Avg time (doc/code) & Avg output tokens (doc/code) & Representative device \\
+\midrule
+$\approx$10GB (Gemma 4 e4B) & 6/8 & 6/8 & 9.2s / 22.2s & 253 / 709 & high-end laptop \\
+$\approx$5GB (Qwen3.5 4B) & 4/8 & 4/8 & 7.9s / 26.1s & 260 / 859 & mid laptop / high-end phone \\
+$\approx$1GB (Qwen3.5 0.8B) & 2/8 & 0/8 & 2.8s / 7.7s & 268 / 755 & phone / wearable \\
+\bottomrule
+\end{tabular}}
+\caption{Model tier gradient (no-think, majority).}
+\label{tab:tier}
+\end{table}
+
+In the light-task subset (excluding statistics, lists, bugs, and version diffing), Gemma 4 e4B scores 5/6 and 6/6; Qwen3.5 4B scores 4/6 and 4/6; Qwen3.5 0.8B scores 2/6 and 0/6. For this task set, the 0.8B tier suits only mechanical tasks such as field extraction and keyword search; the 4B tier is a limited usable lower bound; Gemma 4 e4B is more reliable on lightweight direct-call tasks.
+
+\subsubsection{4.4 Failure fingerprints}
+\begin{itemize}
+\item Cloud failures often accompany over-long outputs; local-model failures manifest more as omissions, short answers, or incompletion under long inputs;
+\item Statistics, precision, and long-input tasks are the most stable failure categories across the tested models and configurations;
+\item These descriptions are scoped to this task set and do not substitute for broad capability conclusions on standardized benchmarks.
+\end{itemize}
+
+\subsection{5 RQ2: Orchestration, Tools, and the Cloud--Edge Sub-Agent}
+\subsubsection{5.1 G2: DSH orchestration vs. direct calls}
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{lcccc}
+\toprule
+Dimension & G1 doc & G2 doc & G1 code & G2 code \\
+\midrule
+Quality (task majority) & 6/8 & 7/8 & 8/8 & 8/8 \\
+Avg time/run & 14.5s & 24.3s & 32.6s & 62.0s \\
+Equivalent input/run & 426 & 3,554 (cache 84\%) & 920 & 13,529 (cache 93\%) \\
+Output/run & 1,697 & 586 & 3,719 & 5,529 \\
+\bottomrule
+\end{tabular}
+\caption{G2: orchestration vs. direct calls (independent sessions).}
+\label{tab:g2}
+\end{table}
+
+On this task set, DSH orchestration does not lower quality and even fixes one statistical hallucination; the cost is 1.7--1.9$\times$ wall-clock time and more input. Cache-hit rates mitigate the bill, but ``equivalent input'' is not actual dollar billing.
+
+\subsubsection{5.2 G3: tool collaboration on single-step tasks}
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{lcccccc}
+\toprule
+Metric & G1 doc & G2 doc & G3 doc & G1 code & G2 code & G3 code \\
+\midrule
+Quality (task majority) & 6/8 & 7/8 & 7/8 & 8/8 & 8/8 & 8/8 \\
+Avg time & 14.5s & 24.3s & 50.0s & 32.6s & 62.0s & 100.2s \\
+Equivalent input & 426 & 3,554 & 11,929 & 920 & 13,529 & 21,342 \\
+\bottomrule
+\end{tabular}
+\caption{G3: tool collaboration on single-step tasks.}
+\label{tab:g3}
+\end{table}
+
+\begin{itemize}
+\item Rule-guided routing achieved 94\% execution accuracy: 100\% for simple/summarization types and 75\% for precision types; in the rule-free G3-free variant, cerebellum calls were 0/48. This indicates that, under these prompts and tasks, the model does not stably adopt the cerebellum on its own; it does not imply that all agent frameworks must use hard-coded rules.
+\item For single-step tasks, tool collaboration showed no token or time benefit: task text passed through tool arguments and results flowed back, adding extra context and steps.
+\item In c6, the cerebellum achieved 3/3 PASS under direct calls but 0/3 PASS within collaboration, suggesting that relay may lose task constraints. Routing implementations should pass the original task text losslessly.
+\end{itemize}
+
+\subsubsection{5.3 Measurement impact of session form}
+Comparing serial long sessions and independent sessions on the same task set: cache-hit rates went from 33--58\% to 84--96\%, input dropped by $\approx$90\%, and wall-clock time roughly halved; the earlier relative conclusion ``collaboration is faster'' was reversed accordingly. This supports independent sessions as the measurement premise of this study and suggests that agent evaluation should explicitly report session and cache form.
+
+\subsubsection{5.4 G4: the counter-intuitive cloud--edge sub-agent result}
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{lcc}
+\toprule
+Metric & G4-a: v4-flash alone & G4-b: v4-flash + Gemma 4 e4B sub-agent \\
+\midrule
+System quality (task majority) & 3/3 PASS & 3/3 PASS (with fallback) \\
+New input / output & 73,314 / 47,906 & 85,741 (+17\%) / 83,344 (+74\%) \\
+Wall-clock & 371s & 2,995s (8.1$\times$) \\
+Cerebellum substantive output rate & --- & 8/21 ($\approx$38\%) \\
+\bottomrule
+\end{tabular}
+\caption{G4: cloud--edge sub-agent result.}
+\label{tab:g4}
+\end{table}
+
+G4-b's system quality is secured by fallback and cannot be read as first-attempt cerebellum quality equal to G4-a. For Gemma 4 e4B, this device, this DSH configuration, and the three task types, sub-agent incompletion, re-dispatch, and fallback exceeded any observed division-of-labor benefit; this cloud--edge configuration therefore delivered no token or latency advantage. The engineering implication is: \textbf{a local model that ``can do it'' under direct calls is not thereby proven to ``do it reliably'' in an Agent Loop.}
+
+\subsubsection{5.5 V0--V4: execution-form isolation on scenario A}
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{lcl}
+\toprule
+Variant & Setup & Substantive output \\
+\midrule
+V0 & content inlined, zero tools & 3/3 (12/12 cumulative) \\
+V1 & V0 + 17K system prompt & 2/3 \\
+V2 & V0 + tool schema (declared, not called) & 0/3 \\
+V3 & read-file instruction, no inlined content & 0/3 \\
+V4 & native tool loop & 1/3 \\
+G4-b & multi-factor, three scenarios & 8/21 \\
+\bottomrule
+\end{tabular}
+\caption{V0--V4 execution-form isolation on scenario A.}
+\label{tab:v}
+\end{table}
+
+V0--V4 were deeply isolated only on scenario A. V2's 0/3 shows that, in this model--prompt--runtime combination, tool-schema presence and planning-preamble interruption are strongly associated; it cannot alone prove that schemas ``cause collapse'' in general. Possible confounders include the tool-call template, system-prompt structure, sampling settings, and local-runtime tool-format support. Nevertheless, V0's cumulative 12/12 versus V2's 0/3 gives a strong engineering signal: for the tested Gemma 4 e4B, \textbf{content-inlined direct calls are the reliable form and heavy-tool agent forms are high-risk}. This is the concrete manifestation of the \emph{execution-form times model-capability-tier interaction boundary}. Follow-up should extend V2 to scenarios B/C and to other models and runtimes.
+
+\subsubsection{5.6 RQ2 summary: execution form times model capability tier}
+This study yields a directly actionable rule: for the tested Gemma 4 e4B, prefer lightweight content-inlined direct calls; when heavy tools, state management, or sub-agent loops are required, use models already verified reliable in that form, or use locally trained tool-specialized models. Small-model agent reliability is jointly determined by ``what it does'' and ``how it is invoked''; a direct-call baseline cannot replace an Agent-Loop baseline. This rule is an empirical boundary of the current experiments, not a law generalizable by parameter count alone.
+
+\subsection{6 RQ3: Cost-Tiered Collaboration Scenario Analysis}
+\subsubsection{6.1 Purpose and evidence level}
+This section does not report a full G5 sub-agent measurement; it compares price structures under a unified token trajectory. Measured evidence includes v4-flash's G4-a main-agent trajectory and v4-flash direct-call completion of 9/9. The core unmeasured assumption is that v4-flash as a sub-agent approximates G4-a in success rate, tool behavior, output volume, reasoning tokens, and caching behavior. Because main/sub-agent identity, permissions, prompts, and fallback mechanisms differ, this assumption is an approximation, not a fact.
+
+\subsubsection{6.2 Fixed price snapshot}
+The following fixed standard-rate snapshot (USD per million tokens) is used by the cost script. It is not a ``current price'' claim at publication time; the price values appear in the appendix table and their source pages in the references.
+
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{lcccc}
+\toprule
+Model & Input (cache miss) & Cache hit & Output & Cache/input ratio \\
+\midrule
+DeepSeek v4-flash & \$0.14 & \$0.0028 & \$0.28 & 1/50 \\
+DeepSeek v4-pro & \$1.74 & \$0.0145 & \$3.48 & $\approx$1/120 \\
+GPT-5.6 Sol & \$5.00 & \$0.50 & \$30.00 & 1/10 \\
+Claude Fable 5 & \$10.00 & \$1.00 & \$50.00 & 1/10 \\
+\bottomrule
+\end{tabular}
+\caption{Fixed price snapshot.}
+\label{tab:price}
+\end{table}
+
+In this snapshot the v4-pro to v4-flash price ratios depend on token category: $\approx$12.4$\times$ for cache-miss input and output, and $\approx$5.2$\times$ for cache hits; we therefore do not describe this scenario with a single ``$\approx$3$\times$''.
+
+\subsubsection{6.3 Token baseline and formulas}
+G4-a totals over 9 tasks: 73,314 cache-miss input tokens, 571,904 cache-hit tokens ($\approx$88.6\% of input), 47,906 output tokens, and 29,212 reasoning tokens. Consistent with original billing, reasoning tokens are priced at the output rate, giving 77,118 billed output tokens.
+
+For a brain model $M$, the brain-only scenario is
+\begin{equation}
+C_{\mathrm{full}}(M)=\frac{73{,}314\,P_M^{in}+571{,}904\,P_M^{cache}+77{,}118\,P_M^{out}}{10^6}.
+\end{equation}
+
+The collaboration scenario has three components:
+\begin{itemize}
+\item flash execution: \$0.033 for the same token trajectory;
+\item dispatch: $9\times500\times P_M^{in}/10^6$;
+\item verification: $9\times(8{,}569\times P_M^{in}+1{,}500\times P_M^{out})/10^6$,
+\end{itemize}
+where 8,569 is the average per-task cerebellum-result verification input, priced as cache-miss input, and 1,500 is the verification-judgment output. This design conservatively treats verification input as cache-miss but does not model cross-vendor tokenizer, reasoning-length, or real caching differences.
+
+\subsubsection{6.4 Scenario results}
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{lcccccc}
+\toprule
+Brain price scenario & Brain-only & flash exec & dispatch & verify & collab total & est. savings \\
+\midrule
+v4-pro & \$0.404 & \$0.033 & \$0.008 & \$0.181 & \$0.223 & 45.0\% \\
+GPT-5.6 Sol & \$2.966 & \$0.033 & \$0.023 & \$0.791 & \$0.847 & 71.5\% \\
+Claude Fable 5 & \$5.161 & \$0.033 & \$0.045 & \$1.446 & \$1.525 & 70.5\% \\
+\bottomrule
+\end{tabular}
+\caption{Cost scenario results (USD, 9 tasks).}
+\label{tab:cost}
+\end{table}
+
+Sol's verification-input sensitivity is $\approx$85\% for a 2K summary, 71.5\% at the 8.6K average, and $\approx$60\% for 15K full content. High-priced brains with low-priced execution layers leave notable bill room; savings do not strictly increase with the price ratio (e.g., Fable is pricier than Sol yet yields slightly lower savings). Verification-input size, input/output price ratio, and caching rules jointly determine the result.
+
+\subsubsection{6.5 Design guidelines and validation plan}
+When the scenario assumptions hold, cost-sensitive design guidelines are:
+\begin{enumerate}
+\item minimize brain verification input, rather than focusing only on executor unit price;
+\item control cerebellum output length to avoid double amplification in execution output and verification input;
+\item raise cache-hit rates through stable prefixes and compute according to vendor cache read/write rules.
+\end{enumerate}
+These are scenario-derived design guidelines, not universal laws. The immediate next step is to validate \textbf{G5-b}: run v4-flash as a real sub-agent loop on at least one representative scenario for 3 runs, reporting first-attempt success rate, fallback, quality, all token categories, and wall-clock time.
+
+\subsection{7 Discussion and Limitations}
+\subsubsection{7.1 Interpreting the counter-intuitive result}
+The G4 mechanism chain is: in the tested sub-agent form, Gemma 4 e4B often emits planning preambles or incompletion, followed by re-dispatch and fallback, so system token and wall-clock costs exceed the cloud baseline. V0--V4 reinforce the execution-form-mismatch explanation: the model completes stably under content-inlined direct calls and degrades markedly when tool schemas and native tool loops are present.
+
+The significance is not to sentence edge agents to death but to change the evaluation question: \emph{``can it complete a task'' and ``can it complete the task in the target agent form'' are two different questions.} For small models intended for deployment, measure first-attempt success, failure modes, and fallback cost separately under direct-call, single-tool, and agent-loop forms.
+
+\subsubsection{7.2 Boundaries of task routing}
+This task set supports the heuristics: simple structural tasks to the cerebellum via direct calls; summarization/generation tasks may try reasoning; precision, statistical, or long-input tasks to the high-capability brain. The rules need explicit prompt grounding; they are not cross-domain universal routers and still require validation on target workloads.
+
+\subsubsection{7.3 Limitations}
+\begin{enumerate}
+\item Only three runs per task; no statistical significance testing. We report engineering acceptance and large-effect observations, not population-level statistical inference;
+\item The judge shares provenance with some executors; golden answers and manual review mitigate but cannot exclude evaluation bias;
+\item Local sub-agent conclusions are based on Google Gemma 4 e4B, Mac M1 Pro, MLX, and DSH; the 4B/0.8B gradient does not constitute multi-model Agent-Loop replication;
+\item V0--V4 deep isolation covers scenario A only;
+\item Round-1 golden answers were labeled post-hoc, introducing exploratory bias;
+\item G5 is a scenario analysis based on the execution-form-equivalence assumption, a unified token trajectory, and verification-input estimates, not cross-vendor real-run billing;
+\item We do not account for hardware, electricity, depreciation, data governance, privacy, offline availability, or manual operations, so we do not compare total cost of ownership;
+\item Prices, model versions, and tool capabilities change rapidly; cost conclusions are only interpretable with the fixed snapshot.
+\end{enumerate}
+
+\subsection{8 Conclusion}
+Using Google Gemma 4 e4B as the local executor, we report a counter-intuitive but clearly bounded result: in the DSH sub-agent loop and three multi-step tasks, cloud--edge collaboration did not reduce tokens or wall-clock time because of planning-preamble interruption, incompletion, re-dispatch, and fallback. The V0--V4 comparison on scenario A further shows that the same model is stable under content-inlined direct calls and significantly unstable under heavy-tool forms.
+
+Our core conclusion is: \textbf{model scale or deployment location is insufficient to predict agent reliability; execution form is a system variable that must be evaluated separately.} For the tested Gemma 4 e4B, lightweight content-inlined forms are more reliable; heavy agent forms require model capability already validated in that form or specialized tool-use training.
+
+The fixed-trajectory cost scenario analysis further indicates that, if cheap cloud models remain reliable in real sub-agent form, cost-tiered collaboration could substantially reduce the API bill of high-priced brains. This direction requires validation with real G5 sub-agent runs, cross-model replication, and vendor bill data.
+
+\subsection*{Appendix A: Data Availability}
+All result data (task-level and per-run pass rates, token details, cost computations) are reported in the main text and appendix tables; raw session logs and execution scripts are not made public.
+
+\begin{thebibliography}{9}
+\bibitem{tinyllm} M. A. Haque et al. \emph{TinyLLM: Evaluation and Optimization of Small Language Models for Agentic Tasks on Edge Devices}. arXiv:2511.22138, 2025.
+\bibitem{localsplitter} J. O. Agyemang et al. \emph{Local-Splitter: A Measurement Study of Seven Tactics for Reducing Cloud LLM Token Usage on Coding-Agent Workloads}. arXiv:2604.12301, 2026.
+\bibitem{sedge} A. Hadjiliasi, L. Nisiotis. \emph{Enhancing Virtual Agents through SLMs and Edge-Computing: An Exploratory Evaluation of Think and Memory Processes}. arXiv:2608.13420, 2026.
+\bibitem{r1} DeepSeek-AI. \emph{DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning}. arXiv:2501.12948, 2025.
+\bibitem{dsh} DeepSeek AI. \emph{DeepSeek Harness}. https://github.com/deepseek-ai/deepseek-harness (experimental platform; release commit noted in the paper).
+\bibitem{dsprice} DeepSeek API Docs. \emph{Models \& Pricing}. https://api-docs.deepseek.com/quick\_start/pricing/ (dynamic; only the fixed snapshot in this paper is used).
+\bibitem{oai} OpenAI. \emph{Models}. https://platform.openai.com/docs/models/ (dynamic; only the fixed snapshot in this paper is used).
+\bibitem{ant} Anthropic. \emph{Pricing}. https://docs.anthropic.com/en/docs/about-claude/pricing (dynamic; only the fixed snapshot in this paper is used).
+\end{thebibliography}
+
+\end{document}

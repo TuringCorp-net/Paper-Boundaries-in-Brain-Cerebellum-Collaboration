@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite it as below."
+title: "Exploring Execution-Form Boundaries in Brain–Cerebellum Collaboration: An Empirical Study from Cloud–Edge to Cost-Tiered Architectures"
+authors:
+  - family-names: Zhang
+    given-names: Li
+date-released: 2026-09-02
+version: v1
+license: CC-BY-4.0
+keywords:
+  - brain-cerebellum collaboration
+  - execution form
+  - small language models
+  - agent architecture
+  - cost scenario analysis
